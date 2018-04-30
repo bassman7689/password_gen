@@ -46,14 +46,14 @@ void init_rand() {
         exit(1);
     }
 
-    int randomSeed;
-    ssize_t result = read(urandom, &randomSeed, sizeof(randomSeed));
+    int random_seed;
+    ssize_t result = read(urandom, &random_seed, sizeof(random_seed));
     close(urandom);
     if (result < 0) {
         fprintf(stderr, "couldn't read from /dev/urandom!\n");
     }
 
-    srand(randomSeed);
+    srand(random_seed);
 }
 
 char get_random_char_from_char_set(char_set * cs) {
