@@ -56,7 +56,7 @@ void init_rand() {
     srand(randomSeed);
 }
 
-char get_random_char(char_set * cs) {
+char get_random_char_from_char_set(char_set * cs) {
     int idx = rand() % cs->size;
     return cs->characters[idx];
 }
@@ -88,7 +88,7 @@ void build_password_set(char_set *cs, password_set *ps) {
         ps->passwords[i] = malloc(sizeof(char) * ps->pass_len + 1);
 
         for (int j = 0; j < ps->pass_len; j++) {
-                ps->passwords[i][j] = get_random_char(cs);
+                ps->passwords[i][j] = get_random_char_from_char_set(cs);
         }
 
         ps->passwords[i][ps->pass_len] = '\0';
