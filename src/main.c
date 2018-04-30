@@ -124,5 +124,6 @@ int main(int argc, char* argv[]) {
     print_password_set(ps);
 
     destroy_password_set(ps);
+
     destroy_char_set(cs);
 }
