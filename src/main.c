@@ -1,22 +1,56 @@
 #include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <unistd.h>
 
 #define DEFAULT_NUM_PASSWORDS 20
 #define DEFAULT_PASSWORD_LENGTH 20
 
+typedef struct random_stream_t {
+    int urandom;
+} random_stream;
+
+unsigned int get_random_number_from_random_stream(random_stream *r, unsigned int start, unsigned int end) {
+    unsigned int random_num;
+    ssize_t result = read(r->urandom, &random_num, sizeof(random_num));
+    if (result < 0) {
+        fprintf(stderr, "couldn't read from /dev/urandom!\n");
+    }
+
+    return ((random_num % end) + start);
+}
+
+random_stream *build_random_stream() {
+    random_stream *r = malloc(sizeof(random_stream));
+    r->urandom = open("/dev/urandom", O_RDONLY);
+
+    if (r->urandom < 0) {
+        fprintf(stderr, "couldn't open /dev/urandom for reading!\n");
+        exit(1);
+    }
+
+    unsigned int random_seed = get_random_number_from_random_stream(r, INT_MIN, INT_MAX);
+    return r;
+}
+
+void destroy_random_stream(random_stream *r) {
+    close(r->urandom);
+}
+
+
 typedef struct char_set_t {
     int size;
     char* characters;
+    random_stream *r;
 } char_set;
 
-char_set *build_default_char_set() {
+char_set *build_default_char_set(random_stream *r) {
     char_set* cs = malloc(sizeof(char_set));
     cs->size = 0;
+    cs->r = r;
 
     for (char c = 0; c < 127; c++) {
         if (isprint(c)) {
@@ -38,33 +72,21 @@ char_set *build_default_char_set() {
     return cs;
 }
 
-void init_rand() {
-    int urandom = open("/dev/urandom", O_RDONLY);
-
-    if (urandom < 0) {
-        fprintf(stderr, "couldn't open /dev/urandom for reading!\n");
-        exit(1);
-    }
-
-    int random_seed;
-    ssize_t result = read(urandom, &random_seed, sizeof(random_seed));
-    close(urandom);
-    if (result < 0) {
-        fprintf(stderr, "couldn't read from /dev/urandom!\n");
-    }
-
-    srand(random_seed);
-}
-
 char get_random_char_from_char_set(char_set * cs) {
-    int idx = rand() % cs->size;
+    unsigned int idx = get_random_number_from_random_stream(cs->r, 0, cs->size-1);
+    assert(idx < cs->size);
+    assert(idx >= 0);
+    assert(isprint(cs->characters[idx]));
     return cs->characters[idx];
 }
 
 void destroy_char_set(char_set *cs) {
     assert(cs);
+    assert(cs->r);
     assert(cs->characters);
+
     free(cs->characters);
+    destroy_random_stream(cs->r);
     free(cs);
 }
 
@@ -96,7 +118,7 @@ void build_password_set(char_set *cs, password_set *ps) {
 }
 
 void print_password_set(password_set *ps) {
-    fprintf(stderr, "passwords:\n\n");
+    printf("passwords:\n\n");
     for(int i = 0; i < ps->num_passwords; i++) {
         printf("%s\n", ps->passwords[i]);
     }
@@ -112,9 +134,8 @@ void destroy_password_set(password_set *ps) {
 }
 
 int main(int argc, char* argv[]) {
-    init_rand();
-
-    char_set* cs = build_default_char_set();
+    random_stream *r = build_random_stream();
+    char_set* cs = build_default_char_set(r);
 
     int num_passwords = DEFAULT_NUM_PASSWORDS;
     int pass_len = DEFAULT_PASSWORD_LENGTH;
